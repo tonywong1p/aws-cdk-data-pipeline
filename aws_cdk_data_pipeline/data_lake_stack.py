@@ -1,11 +1,7 @@
 from aws_cdk import (
     aws_iam as iam,
     aws_s3 as s3,
-    aws_s3_notifications as s3n,
     aws_glue as glue,
-    aws_kinesisfirehose as firehose,
-    aws_kinesisfirehose_destinations as firehose_destinations,
-    aws_lambda,
     core
 )
 
@@ -19,26 +15,6 @@ class DataLakeStack(core.Stack):
 
         # S3
         bucket = s3.Bucket(self, "bucket")
-
-        # Firehose
-        firehose_role = iam.Role(
-            self,
-            'firehose-role',
-            assumed_by=iam.ServicePrincipal('firehose.amazonaws.com'),
-            managed_policies=[iam.ManagedPolicy.from_aws_managed_policy_name("CloudWatchFullAccess"),
-                              iam.ManagedPolicy.from_aws_managed_policy_name("AmazonS3FullAccess")]
-        )
-
-        destination = firehose_destinations.S3Bucket(bucket,
-                                                     buffering_interval=core.Duration.minutes(
-                                                         1),
-                                                     buffering_size=core.Size.mebibytes(
-                                                         1)
-                                                     )
-        delivery_steam = firehose.DeliveryStream(self, "delivery_stream",
-                                                 destinations=[destination],
-                                                 role=firehose_role
-                                                 )
 
         # Glue Crawler
         glue_database_name = "glue_database"
@@ -68,19 +44,6 @@ class DataLakeStack(core.Stack):
             }
         )
 
-        # # S3 Event
-        # event_notification_lambda = aws_lambda.Function(self, "event_notification_function",
-        #                                                 runtime=aws_lambda.Runtime.PYTHON_3_6,
-        #                                                 handler="s3_event.lambda_handler",
-        #                                                 code=aws_lambda.Code.asset(
-        #                                                     "./lambda"),
-        #                                                 environment={
-        #                                                     "CodeVersionString": code_version
-        #                                                 }
-        #                                                 )
-        # bucket.add_event_notification(
-        #     s3.EventType.OBJECT_CREATED, s3n.LambdaDestination(event_notification_lambda))
-
-        core.CfnOutput(self, "delivery_stream_name",
-                       value=delivery_steam.delivery_stream_name)
-        self.delivery_stream = delivery_steam
+        core.CfnOutput(self, "bucket_name",
+                       value=bucket.bucket_name)
+        self.bucket = bucket

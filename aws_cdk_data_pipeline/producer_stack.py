@@ -3,16 +3,38 @@ from aws_cdk import (
     aws_lambda,
     aws_events,
     aws_events_targets,
+    aws_kinesisfirehose as firehose,
+    aws_kinesisfirehose_destinations as firehose_destinations,
     core
 )
 
 
 class ProducerStack(core.Stack):
 
-    def __init__(self, scope: core.Construct, construct_id: str, delivery_stream, **kwargs) -> None:
+    def __init__(self, scope: core.Construct, construct_id: str, bucket, **kwargs) -> None:
         super().__init__(scope, construct_id, **kwargs)
 
         # The code that defines your stack goes here
+
+        # Firehose
+        firehose_role = iam.Role(
+            self,
+            'firehose-role',
+            assumed_by=iam.ServicePrincipal('firehose.amazonaws.com'),
+            managed_policies=[iam.ManagedPolicy.from_aws_managed_policy_name("CloudWatchFullAccess"),
+                              iam.ManagedPolicy.from_aws_managed_policy_name("AmazonS3FullAccess")]
+        )
+
+        destination = firehose_destinations.S3Bucket(bucket,
+                                                     buffering_interval=core.Duration.minutes(
+                                                         1),
+                                                     buffering_size=core.Size.mebibytes(
+                                                         1)
+                                                     )
+        delivery_stream = firehose.DeliveryStream(self, "delivery_stream",
+                                                 destinations=[destination],
+                                                 role=firehose_role
+                                                 )
 
         # Lambda
         lambda_role = iam.Role(
@@ -46,7 +68,3 @@ class ProducerStack(core.Stack):
             enabled=True,
             schedule=lambda_schedule,
             targets=[event_lambda_target])
-
-
-
-        # Glue Job for data load
